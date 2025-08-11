@@ -145,7 +145,10 @@ authRouter.post("/verify-otp", async (req, res) => {
       where: { id: token.id },
       data: { verified_at: new Date() },
     });
-    await prisma.users.update({ where: { email }, data: { is_verified: true } });
+    await prisma.users.update({
+      where: { email },
+      data: { is_verified: true },
+    });
 
     const jwtToken = jwt.sign({ sub: user.id }, jwtSecret, {
       expiresIn: "7d",
@@ -163,6 +166,12 @@ authRouter.post("/verify-otp", async (req, res) => {
 });
 
 authRouter.post("/login", async (req, res) => {
+  // Validation:: email and password are required both in string format
+  if (!req.body.email || !req.body.password) {
+    return res
+      .status(400)
+      .json({ status: "failure", message: "Email and password are required" });
+  }
   try {
     const { email, password } = req.body;
     const user = await prisma.users.findUnique({ where: { email } });
