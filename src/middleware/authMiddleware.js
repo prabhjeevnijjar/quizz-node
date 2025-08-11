@@ -21,6 +21,10 @@ const authMiddleware = async (req, res, next) => {
       return res.status(401).json({ message: "User does not exist or is not verified" });
     }
 
+    // if (user.role !== "ADMIN") {
+    //   return res.status(400).json({ message: "User does not have admin access" });
+    // }
+
     req.user = user;
     next();
   } catch (err) {
