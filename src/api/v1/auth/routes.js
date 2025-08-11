@@ -21,14 +21,6 @@ const logoutUser = (res) =>
     path: "/",
   });
 
-const setCookie = (res, jwtToken) =>
-  res.status(200).cookie("token", jwtToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "Lax",
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-  });
-
 authRouter.post("/signup", rateLimiter, async (req, res) => {
   try {
     const { fullName, email, password, confirmPassword } = req.body;
@@ -102,85 +94,6 @@ authRouter.post("/signup", rateLimiter, async (req, res) => {
   }
 });
 
-authRouter.post("/verify-otp", async (req, res) => {
-  try {
-    const { email, otp } = req.body;
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user)
-      return res
-        .status(400)
-        .json({ status: "failure", message: "Invalid user" });
-    if (user.isVerified)
-      return res
-        .status(400)
-        .json({ status: "failure", message: "User is already verified" });
-    const token = await prisma.otpToken.findFirst({
-      where: {
-        userId: user.id,
-        otpCode: otp,
-        verifiedAt: null,
-        expiresAt: { gt: new Date() },
-        purpose: "SIGNUP",
-      },
-    });
-
-    if (!token)
-      return res
-        .status(400)
-        .json({ status: "failure", message: "Invalid or expired OTP" });
-
-    await prisma.otpToken.update({
-      where: { id: token.id },
-      data: { verifiedAt: new Date() },
-    });
-    await prisma.user.update({ where: { email }, data: { isVerified: true } });
-
-    const jwtToken = jwt.sign({ sub: user.id }, jwtSecret, {
-      expiresIn: "7d",
-    });
-    setCookie(res, jwtToken);
-    res
-      .status(200)
-      .json({ status: "success", message: "OTP verified", token: jwtToken });
-  } catch (err) {
-    console.error(err);
-    res
-      .status(500)
-      .json({ status: "failure", message: "Something went wrong" });
-  }
-});
-
-authRouter.post("/login", async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user)
-      return res
-        .status(400)
-        .json({ status: "failure", message: "Invalid email or password" });
-    if (user && !user.isVerified)
-      return res
-        .status(403)
-        .json({ status: "failure", message: "Email not verified" });
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch)
-      return res
-        .status(400)
-        .json({ status: "failure", message: "Invalid email or password" });
-
-    const jwtToken = jwt.sign({ sub: user.id }, jwtSecret, {
-      expiresIn: "7d",
-    });
-    setCookie(res, jwtToken);
-    res.status(200).json({ status: "success", token: jwtToken });
-  } catch (err) {
-    console.error(err);
-    res
-      .status(500)
-      .json({ status: "failure", message: "Something went wrong" });
-  }
-});
 
 authRouter.get("/me", async (req, res) => {
   try {
@@ -238,13 +151,5 @@ authRouter.get("/me", async (req, res) => {
   }
 });
 
-authRouter.post("/logout", async (req, res) => {
-  try {
-    logoutUser(res);
-    return res.status(200).json({ status: "success", message: "Logged out" });
-  } catch {
-    logoutUser(res);
-  }
-});
 
 module.exports = authRouter;

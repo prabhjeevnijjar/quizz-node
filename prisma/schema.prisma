@@ -1,0 +1,111 @@
+
+datasource db {
+  provider = "postgresql" // Change to your DB
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum QuizStatus {
+  DRAFT
+  LIVE
+  EXPIRED
+}
+
+enum OtpPurpose {
+  LOGIN
+  SIGNUP
+  FORGOT_PASSWORD
+}
+
+
+model users {
+  id            Int               @id @default(autoincrement())
+  email         String            @unique
+  password_hash String
+  role          Role
+  created_at    DateTime          @default(now())
+  updated_at    DateTime?
+
+  createdQuizzes   quizzes[]      @relation("QuizCreator")
+  quizAssignments  quiz_assignments[]
+  quizScores       quiz_scores[]
+  otpTokens        otp_tokens[]
+}
+
+model quizzes {
+  id         Int           @id @default(autoincrement())
+  name       String        @unique
+  creator_id Int
+  status     QuizStatus    @default(DRAFT)
+  expires_at DateTime?
+  created_at DateTime      @default(now())
+  updated_at DateTime?
+
+  creator         users               @relation("QuizCreator", fields: [creator_id], references: [id])
+  assignments     quiz_assignments[]
+  questions       questions[]
+  quizScores      quiz_scores[]
+}
+
+model quiz_assignments {
+  id         Int      @id @default(autoincrement())
+  quiz_id    Int
+  user_id    Int
+  created_at DateTime @default(now())
+
+  quiz  quizzes @relation(fields: [quiz_id], references: [id])
+  user  users   @relation(fields: [user_id], references: [id])
+}
+
+model questions {
+  id             Int       @id @default(autoincrement())
+  quiz_id        Int
+  question_text  String
+  created_at     DateTime  @default(now())
+
+  quiz     quizzes @relation(fields: [quiz_id], references: [id])
+  options  options[]
+}
+
+model options {
+  id          Int      @id @default(autoincrement())
+  question_id Int
+  value       String
+  is_correct  Boolean  @default(false)
+
+  question questions @relation(fields: [question_id], references: [id])
+}
+
+model quiz_scores {
+  id                  Int       @id @default(autoincrement())
+  user_id             Int
+  quiz_id             Int
+  score_value_obtained Int?
+  score_total         Int?
+  attempt_number      Int       @default(1)
+  completed_at        DateTime?
+  created_at          DateTime  @default(now())
+
+  user users   @relation(fields: [user_id], references: [id])
+  quiz quizzes @relation(fields: [quiz_id], references: [id])
+}
+
+model otp_tokens {
+  id          Int         @id @default(autoincrement())
+  user_id     Int?
+  otp_code    String
+  created_at  DateTime    @default(now())
+  expires_at  DateTime?
+  verified_at DateTime?
+  purpose     OtpPurpose
+
+  user users? @relation(fields: [user_id], references: [id])
+}
