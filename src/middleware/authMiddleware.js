@@ -13,17 +13,13 @@ const authMiddleware = async (req, res, next) => {
 
     const decoded = jwt.verify(token, jwtSecret);
 
-    const user = await prisma.user.findUnique({
+    const user = await prisma.users.findUnique({
       where: { id: decoded.sub },
     });
 
     if (!user || !user.is_verified) {
       return res.status(401).json({ message: "User does not exist or is not verified" });
     }
-
-    // if (user.role !== "ADMIN") {
-    //   return res.status(400).json({ message: "User does not have admin access" });
-    // }
 
     req.user = user;
     next();
