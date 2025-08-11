@@ -17,7 +17,7 @@ const authMiddleware = async (req, res, next) => {
       where: { id: decoded.sub },
     });
 
-    if (!user || !user.isVerified) {
+    if (!user || !user.is_verified) {
       return res.status(401).json({ message: "User does not exist or is not verified" });
     }
 

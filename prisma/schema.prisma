@@ -1,11 +1,11 @@
-
-datasource db {
-  provider = "postgresql" // Change to your DB
-  url      = env("DATABASE_URL")
-}
-
 generator client {
   provider = "prisma-client-js"
+  output   = "./node_modules/@prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 enum Role {
@@ -29,10 +29,11 @@ enum OtpPurpose {
 model users {
   id            Int               @id @default(autoincrement())
   email         String            @unique
-  password_hash String
+  password      String
   role          Role
   created_at    DateTime          @default(now())
   updated_at    DateTime?
+  is_verified   Boolean   @default(false)
 
   createdQuizzes   quizzes[]      @relation("QuizCreator")
   quizAssignments  quiz_assignments[]
@@ -99,13 +100,14 @@ model quiz_scores {
 }
 
 model otp_tokens {
-  id          Int         @id @default(autoincrement())
-  user_id     Int?
+  id          Int       @id @default(autoincrement())
+  user_id     Int
   otp_code    String
-  created_at  DateTime    @default(now())
-  expires_at  DateTime?
+  created_at  DateTime  @default(now())
+  expires_at  DateTime
   verified_at DateTime?
   purpose     OtpPurpose
 
-  user users? @relation(fields: [user_id], references: [id])
+  user        users      @relation(fields: [user_id], references: [id])
+  @@unique([user_id, purpose])
 }

@@ -2,7 +2,7 @@ const express = require("express");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const prisma = require("../../../../prisma/prismaClient");
-const {sendOtpEmail} = require("../../../helper/mailer");
+const { sendOtpEmail } = require("../../../helper/mailer");
 const authRouter = express.Router();
 const rateLimiter = require("../../../middleware/rateLimiter");
 const { jwtSecret, otpExpireMinutes } = require("../../../config");
@@ -31,27 +31,33 @@ const setCookie = (res, jwtToken) =>
 
 authRouter.post("/signup", rateLimiter, async (req, res) => {
   try {
-    const { fullName, email, password, confirmPassword } = req.body;
+    const { fullName, email, password, confirmPassword, role } = req.body;
+    // Validation: email, password, fullName, confirmPassword, role are required
+    if (!email || !password || !fullName || !confirmPassword || !role) {
+      return res
+        .status(400)
+        .json({ status: "failure", message: "All fields are required" });
+    }
     if (!email || !password || !fullName || password !== confirmPassword) {
       return res
         .status(400)
         .json({ status: "failure", message: "Invalid credentials" });
     }
 
-    const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing && existing.isVerified)
+    const existing = await prisma.users.findUnique({ where: { email } });
+    if (existing && existing.is_verified)
       return res
         .status(400)
         .json({ status: "failure", message: "Email exists" });
 
     // delete the unverified user as they can not access the system anyways
-    if (existing && !existing.isVerified) {
-      await prisma.otpToken.deleteMany({
+    if (existing && !existing.is_verified) {
+      await prisma.otp_tokens.deleteMany({
         where: {
-          userId: existing.id,
+          user_id: existing.id,
         },
       });
-      await prisma.user.delete({
+      await prisma.users.delete({
         where: {
           email: email,
         },
@@ -59,36 +65,36 @@ authRouter.post("/signup", rateLimiter, async (req, res) => {
     }
 
     const hashed = await bcrypt.hash(password, 10);
-    const user = await prisma.user.create({
-      data: { email, password: hashed, role: "CREATOR" },
+    const user = await prisma.users.create({
+      data: { email, password: hashed, role },
     });
 
     const otp = generateOTP();
     const expiresAt = generateExpiresAt();
 
     // delete any old unverified otps before creating new one
-    await prisma.otpToken.deleteMany({
-      where: { userId: user.id, verifiedAt: null },
+    await prisma.otp_tokens.deleteMany({
+      where: { user_id: user.id, verified_at: null },
     });
 
-    await prisma.otpToken.upsert({
+    await prisma.otp_tokens.upsert({
       where: {
-        userId_purpose: {
-          userId: user.id,
+        user_id_purpose: {
+          user_id: user.id,
           purpose: "SIGNUP",
         },
       },
       create: {
-        userId: user.id,
-        otpCode: otp,
-        createdAt: new Date(),
-        expiresAt: expiresAt,
+        user_id: user.id,
+        otp_code: otp,
+        created_at: new Date(),
+        expires_at: expiresAt,
         purpose: "SIGNUP",
       },
       update: {
-        otpCode: otp,
-        createdAt: new Date(),
-        expiresAt: expiresAt,
+        otp_code: otp,
+        created_at: new Date(),
+        expires_at: expiresAt,
       },
     });
 
@@ -103,23 +109,29 @@ authRouter.post("/signup", rateLimiter, async (req, res) => {
 });
 
 authRouter.post("/verify-otp", async (req, res) => {
+  // Validation:: email and otp are required both in string format
+  if (!req.body.email || !req.body.otp) {
+    return res
+      .status(400)
+      .json({ status: "failure", message: "Email and OTP are required" });
+  }
   try {
     const { email, otp } = req.body;
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.users.findUnique({ where: { email } });
     if (!user)
       return res
         .status(400)
         .json({ status: "failure", message: "Invalid user" });
-    if (user.isVerified)
+    if (user.is_verified)
       return res
         .status(400)
         .json({ status: "failure", message: "User is already verified" });
-    const token = await prisma.otpToken.findFirst({
+    const token = await prisma.otp_tokens.findFirst({
       where: {
-        userId: user.id,
-        otpCode: otp,
-        verifiedAt: null,
-        expiresAt: { gt: new Date() },
+        user_id: user.id,
+        otp_code: otp,
+        verified_at: null,
+        expires_at: { gt: new Date() },
         purpose: "SIGNUP",
       },
     });
@@ -129,11 +141,11 @@ authRouter.post("/verify-otp", async (req, res) => {
         .status(400)
         .json({ status: "failure", message: "Invalid or expired OTP" });
 
-    await prisma.otpToken.update({
+    await prisma.otp_tokens.update({
       where: { id: token.id },
-      data: { verifiedAt: new Date() },
+      data: { verified_at: new Date() },
     });
-    await prisma.user.update({ where: { email }, data: { isVerified: true } });
+    await prisma.users.update({ where: { email }, data: { is_verified: true } });
 
     const jwtToken = jwt.sign({ sub: user.id }, jwtSecret, {
       expiresIn: "7d",
@@ -153,12 +165,12 @@ authRouter.post("/verify-otp", async (req, res) => {
 authRouter.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.users.findUnique({ where: { email } });
     if (!user)
       return res
         .status(400)
         .json({ status: "failure", message: "Invalid email or password" });
-    if (user && !user.isVerified)
+    if (user && !user.is_verified)
       return res
         .status(403)
         .json({ status: "failure", message: "Email not verified" });
@@ -204,18 +216,18 @@ authRouter.get("/me", async (req, res) => {
 
     const decoded = jwt.verify(token, jwtSecret);
 
-    const user = await prisma.user.findUnique({
+    const user = await prisma.users.findUnique({
       where: { id: decoded.sub },
       select: {
         id: true,
         email: true,
         role: true,
-        isVerified: true,
-        createdAt: true,
+        is_verified: true,
+        created_at: true,
       },
     });
 
-    if (!user || !user.isVerified) {
+    if (!user || !user.is_verified) {
       logoutUser(res);
 
       return res.status(401).json({
