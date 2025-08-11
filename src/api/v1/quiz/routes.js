@@ -111,7 +111,6 @@ activityRouter.put("/update/:quizId", authMiddleware, async (req, res) => {
 
     // Run everything in a single transaction
     const result = await prisma.$transaction(async (tx) => {
-      // 1️⃣ Update main quiz data
       const updatedQuiz = await tx.quizzes.update({
         where: { id: quizIdNum },
         data: {
@@ -121,8 +120,7 @@ activityRouter.put("/update/:quizId", authMiddleware, async (req, res) => {
           updated_at: new Date(),
         },
       });
-
-      // 2️⃣ Update assignments if provided
+      // validation: check here that admins are not assigning quizzes to other admins
       if (Array.isArray(assigned_user_ids)) {
         // Remove old assignments
         await tx.quiz_assignments.deleteMany({ where: { quiz_id: quizIdNum } });
@@ -138,7 +136,6 @@ activityRouter.put("/update/:quizId", authMiddleware, async (req, res) => {
         }
       }
 
-      // 3️⃣ Update questions & options if provided
       if (Array.isArray(questions)) {
         for (const q of questions) {
           if (q.id) {
@@ -265,7 +262,7 @@ activityRouter.put("/live/:quizId", authMiddleware, async (req, res) => {
       },
     });
 
-    res.json({ message: "Quiz is now live ", data: quiz, status: "success" });
+    res.json({ message: "Quiz status updated ", data: quiz, status: "success" });
   } catch (error) {
     console.error(error);
     res.status(500).json({
@@ -275,39 +272,73 @@ activityRouter.put("/live/:quizId", authMiddleware, async (req, res) => {
     });
   }
 });
-// fetch all users with their user ids so admin can assign quizzes
-activityRouter.get("/", async (req, res) => {
-  try {
-    if (req.user?.role !== "ADMIN") {
-      return res.status(403).json({ error: "Only admins can view users" });
-    }
+// // fetch all users with their user ids so admin can assign quizzes
+// activityRouter.get("/users", async (req, res) => {
+//   try {
+//     if (req.user?.role !== "ADMIN") {
+//       return res.status(403).json({ error: "Only admins can view users" });
+//     }
 
-    const users = await prisma.users.findMany({
-      where: { role: "USER" },
-      select: { id: true, email: true },
-      orderBy: { id: "asc" },
-    });
+//     const users = await prisma.users.findMany({
+//       where: { role: "USER" },
+//       select: { id: true, email: true },
+//       orderBy: { id: "asc" },
+//     });
 
-    res.json({
-      data: users,
-      status: "success",
-      message: "Users fetched succcessfully",
-    });
-  } catch (error) {
-    console.error("Error fetching users:", error);
-    res.status(500).json({
-      message: "Failed to fetch users",
-      data: null,
-      status: "failure",
-    });
-  }
-});
+//     res.json({
+//       data: users,
+//       status: "success",
+//       message: "Users fetched succcessfully",
+//     });
+//   } catch (error) {
+//     console.error("Error fetching users:", error);
+//     res.status(500).json({
+//       message: "Failed to fetch users",
+//       data: null,
+//       status: "failure",
+//     });
+//   }
+// });
 
 // ------ ADMIN ONLY ENDPOINTS END------
 
 // get all quizzes assigned to the user
-activityRouter.get("/", async () => {});
+activityRouter.get("/", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
 
+    const quizzes = await prisma.quizzes.findMany({
+      where: {
+        assignments: {
+          some: { user_id: userId },
+        },
+        status: { in: ["LIVE"] }, // list all available quizzes
+      },
+      select: {
+        id: true,
+        name: true,
+        expires_at: true,
+        status: true,
+        questions: {
+          select: {
+            id: true,
+            question_text: true,
+            options: {
+              select: { id: true, value: true },
+            },
+          },
+        },
+      },
+    });
+
+    res.json({ status: "success", data: quizzes, message: "Fetched quizzes" });
+  } catch (error) {
+    console.error(error);
+    res
+      .status(500)
+      .json({ status: "failure", message: "Failed to fetch quizzes" });
+  }
+});
 // get all quizzes with results
 activityRouter.get("/results", async () => {});
 
