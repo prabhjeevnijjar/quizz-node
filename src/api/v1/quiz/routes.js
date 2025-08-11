@@ -343,8 +343,42 @@ activityRouter.get("/", authMiddleware, async (req, res) => {
 activityRouter.get("/results", async () => {});
 
 //GET quiz by its id to be attempted by the user
-activityRouter.get(":id", async () => {});
+activityRouter.get("/:id", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const quizId = Number(req.params.id);
 
+    // Ensure this quiz is assigned to the user
+    const quiz = await prisma.quizzes.findFirst({
+      where: {
+        id: quizId,
+        assignments: { some: { user_id: userId } },
+        status: "LIVE"
+      },
+      select: {
+        id: true,
+        name: true,
+        expires_at: true,
+        questions: {
+          select: {
+            id: true,
+            question_text: true,
+            options: { select: { id: true, value: true } }
+          }
+        }
+      }
+    });
+
+    if (!quiz) {
+      return res.status(404).json({ status: "failure", message: "Quiz not found or not accessible" });
+    }
+
+    res.json({ status: "success", data: quiz, message: "Quiz fetched successfully" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ status: "failure", message: "Failed to fetch quiz" });
+  }
+});
 //POST quiz by its id to submit the answers
 activityRouter.post(":id", async () => {});
 
