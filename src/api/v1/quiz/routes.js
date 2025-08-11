@@ -96,7 +96,6 @@ activityRouter.post("/", authMiddleware, async (req, res) => {
   }
 });
 // update a quiz
-
 activityRouter.put("/update/:quizId", authMiddleware, async (req, res) => {
   const { quizId } = req.params;
   console.log("---===================================1------", req.params);
@@ -262,7 +261,11 @@ activityRouter.put("/live/:quizId", authMiddleware, async (req, res) => {
       },
     });
 
-    res.json({ message: "Quiz status updated ", data: quiz, status: "success" });
+    res.json({
+      message: "Quiz status updated ",
+      data: quiz,
+      status: "success",
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({
@@ -303,16 +306,22 @@ activityRouter.put("/live/:quizId", authMiddleware, async (req, res) => {
 // ------ ADMIN ONLY ENDPOINTS END------
 
 // get all quizzes assigned to the user
+// GET /api/v1/quiz
 activityRouter.get("/", authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
+    const now = new Date();
 
     const quizzes = await prisma.quizzes.findMany({
       where: {
         assignments: {
           some: { user_id: userId },
         },
-        status: { in: ["LIVE"] }, // list all available quizzes
+        status: { in: ["LIVE"] },
+        OR: [
+          { expires_at: null }, // no expiry
+          { expires_at: { gt: now } }, // still active
+        ],
       },
       select: {
         id: true,
@@ -331,29 +340,99 @@ activityRouter.get("/", authMiddleware, async (req, res) => {
       },
     });
 
-    res.json({ status: "success", data: quizzes, message: "Fetched quizzes" });
+    res.json({ status: "success", data: quizzes });
   } catch (error) {
     console.error(error);
-    res
-      .status(500)
-      .json({ status: "failure", message: "Failed to fetch quizzes" });
+    res.status(500).json({
+      status: "failure",
+      message: "Failed to fetch quizzes",
+    });
   }
 });
-// get all quizzes with results
-activityRouter.get("/results", async () => {});
+activityRouter.get("/results", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
 
+    // Fetch all quizzes assigned to this user
+    const quizzes = await prisma.quizzes.findMany({
+      where: {
+        assignments: {
+          some: { user_id: userId },
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        expires_at: true,
+        created_at: true,
+        questions: { select: { id: true } },
+        quizScores: {
+          where: { user_id: userId },
+          orderBy: { attempt_number: "desc" },
+          take: 1,
+          select: {
+            score_value_obtained: true,
+            score_total: true,
+            attempt_number: true,
+            completed_at: true,
+          },
+        },
+      },
+      orderBy: { created_at: "desc" },
+    });
+
+    const results = quizzes.map((quiz) => {
+      const maxScore = quiz.questions?.length || 0;
+      const latestScore = quiz.quizScores?.[0] || null;
+
+      return {
+        id: quiz.id,
+        name: quiz.name,
+        status: quiz.status,
+        expires_at: quiz.expires_at,
+        max_score: maxScore,
+        latest_score: latestScore?.score_value_obtained ?? null,
+        score_total: latestScore?.score_total ?? maxScore,
+        attempt_number: latestScore?.attempt_number ?? null,
+        completed_at: latestScore?.completed_at ?? null,
+        attempted: !!latestScore,
+      };
+    });
+
+    return res.status(200).json({
+      status: "success",
+      message: results.length
+        ? "Quiz results fetched successfully"
+        : "No quizzes assigned to this user",
+      data: results,
+    });
+  } catch (error) {
+    console.error("Error fetching quiz results:", error);
+    return res.status(500).json({
+      status: "failure",
+      message: "Failed to fetch quiz results",
+      error: error.message,
+    });
+  }
+});
 //GET quiz by its id to be attempted by the user
 activityRouter.get("/:id", authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
     const quizId = Number(req.params.id);
+    const now = new Date();
 
-    // Ensure this quiz is assigned to the user
+    // Ensure this quiz is assigned to the user and not expired
     const quiz = await prisma.quizzes.findFirst({
       where: {
         id: quizId,
+        status: "LIVE",
         assignments: { some: { user_id: userId } },
-        status: "LIVE"
+        OR: [
+          { expires_at: null }, // no expiry
+          { expires_at: { gt: now } }, // still active
+        ],
       },
       select: {
         id: true,
@@ -363,23 +442,118 @@ activityRouter.get("/:id", authMiddleware, async (req, res) => {
           select: {
             id: true,
             question_text: true,
-            options: { select: { id: true, value: true } }
-          }
-        }
-      }
+            options: { select: { id: true, value: true } },
+          },
+        },
+      },
     });
 
     if (!quiz) {
-      return res.status(404).json({ status: "failure", message: "Quiz not found or not accessible" });
+      return res.status(404).json({
+        status: "failure",
+        message: "Quiz not found, expired, or not accessible",
+      });
     }
 
-    res.json({ status: "success", data: quiz, message: "Quiz fetched successfully" });
+    res.json({
+      status: "success",
+      data: quiz,
+      message: "Quiz fetched successfully",
+    });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ status: "failure", message: "Failed to fetch quiz" });
+    res.status(500).json({
+      status: "failure",
+      message: "Failed to fetch quiz",
+    });
   }
 });
-//POST quiz by its id to submit the answers
-activityRouter.post(":id", async () => {});
+// POST /api/v1/quiz/:id - Submit quiz answers
+activityRouter.post("/:id", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const quizId = Number(req.params.id);
+    const { answers } = req.body;
+    const now = new Date();
+
+    if (!Array.isArray(answers) || answers.length === 0) {
+      return res.status(400).json({
+        status: "failure",
+        message: "No answers provided",
+      });
+    }
+
+    // Check quiz assignment and expiration
+    const quiz = await prisma.quizzes.findFirst({
+      where: {
+        id: quizId,
+        status: "LIVE",
+        assignments: { some: { user_id: userId } },
+        OR: [{ expires_at: null }, { expires_at: { gt: now } }],
+      },
+      select: { id: true },
+    });
+
+    if (!quiz) {
+      return res.status(403).json({
+        status: "failure",
+        message: "You are not assigned to this quiz or it has expired",
+      });
+    }
+
+    // Fetch correct options for scoring
+    const correctOptions = await prisma.options.findMany({
+      where: {
+        is_correct: true,
+        question: { quiz_id: quizId },
+      },
+      select: { question_id: true, id: true },
+    });
+
+    const totalQuestions = correctOptions.length;
+    let correctCount = 0;
+
+    for (const answer of answers) {
+      const correct = correctOptions.find(
+        (opt) =>
+          opt.question_id === answer.question_id && opt.id === answer.option_id
+      );
+      if (correct) correctCount++;
+    }
+
+    // Determine attempt number
+    const attemptNumber =
+      (await prisma.quiz_scores.count({
+        where: { quiz_id: quizId, user_id: userId },
+      })) + 1;
+
+    // Save quiz score
+    await prisma.quiz_scores.create({
+      data: {
+        user_id: userId,
+        quiz_id: quizId,
+        score_value_obtained: correctCount,
+        score_total: totalQuestions,
+        attempt_number: attemptNumber,
+        completed_at: new Date(),
+      },
+    });
+
+    res.json({
+      status: "success",
+      message: "Quiz submitted successfully",
+      data: {
+        score: correctCount,
+        total: totalQuestions,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      status: "failure",
+      message: "Failed to submit quiz",
+    });
+  }
+});
 
 module.exports = activityRouter;
