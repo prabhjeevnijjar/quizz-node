@@ -7,7 +7,6 @@ const authMiddleware = require("../../../middleware/authMiddleware");
 activityRouter.post("/", authMiddleware, async (req, res) => {
   try {
     const { name, questions, assigned_user_ids } = req.body;
-    // Validation: For valid json body
     const adminId = req.user.id;
 
     if (req.user.role !== "ADMIN") {
@@ -18,12 +17,45 @@ activityRouter.post("/", authMiddleware, async (req, res) => {
       });
     }
 
-    // Validation: I can also check if the users (assigned_user_ids) exist or not in the DB
+    // Validate assigned users: must exist & must be USER role
+    let validAssignedUserIds = [];
+    if (Array.isArray(assigned_user_ids) && assigned_user_ids.length > 0) {
+      const users = await prisma.users.findMany({
+        where: {
+          id: { in: assigned_user_ids },
+          role: "USER",
+        },
+        select: { id: true },
+      });
+
+      validAssignedUserIds = users.map((u) => u.id);
+
+      // If some assigned IDs are not valid
+      if (validAssignedUserIds.length !== assigned_user_ids.length) {
+        return res.status(400).json({
+          message: "Some assigned users do not exist or are not ADMIN users",
+          status: "failure",
+          data: null,
+        });
+      }
+    }
+    // check if quiz with the same name already exists
+    const existingQuiz = await prisma.quizzes.findUnique({
+      where: { name },
+    });
+
+    if (existingQuiz) {
+      return res.status(400).json({
+        status: "failure",
+        message: `Quiz with name "${name}" already exists`,
+        data: null,
+      });
+    }
     const quiz = await prisma.quizzes.create({
       data: {
         name,
         creator_id: adminId,
-        expires_at: null, // default status is DRAFT
+        expires_at: null,
         status: "DRAFT",
         questions: {
           create:
@@ -38,10 +70,9 @@ activityRouter.post("/", authMiddleware, async (req, res) => {
             })) || [],
         },
         assignments: {
-          create:
-            assigned_user_ids?.map((userId) => ({
-              user_id: userId,
-            })) || [],
+          create: validAssignedUserIds.map((userId) => ({
+            user_id: userId,
+          })),
         },
       },
       include: {
@@ -50,14 +81,16 @@ activityRouter.post("/", authMiddleware, async (req, res) => {
       },
     });
 
-    res
-      .status(201)
-      .json({ status: "success", message: "Quiz created", data: quiz });
+    res.status(201).json({
+      status: "success",
+      message: "Quiz created",
+      data: quiz,
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({
-      status: "success",
-      message: "Quiz can not be created",
+      status: "failure",
+      message: "Quiz cannot be created",
       data: null,
     });
   }
@@ -228,7 +261,7 @@ activityRouter.put("/live/:quizId", authMiddleware, async (req, res) => {
       data: {
         status: status,
         updated_at: new Date(),
-        expires_at: new Date(expires_at),
+        expires_at: status === "LIVE" ? new Date(expires_at) : null, // if status is LIVE then only set expiration date
       },
     });
 
@@ -262,13 +295,11 @@ activityRouter.get("/", async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching users:", error);
-    res
-      .status(500)
-      .json({
-        message: "Failed to fetch users",
-        data: null,
-        status: "failure",
-      });
+    res.status(500).json({
+      message: "Failed to fetch users",
+      data: null,
+      status: "failure",
+    });
   }
 });
 
