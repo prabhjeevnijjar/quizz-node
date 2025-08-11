@@ -6,7 +6,7 @@ const authMiddleware = require("../../../middleware/authMiddleware");
 // create a quiz
 activityRouter.post("/", authMiddleware, async (req, res) => {
   try {
-    const { name, expires_at, questions, assigned_user_ids } = req.body;
+    const { name, questions, assigned_user_ids } = req.body;
     // Validation: For valid json body
     const adminId = req.user.id;
 
@@ -23,7 +23,8 @@ activityRouter.post("/", authMiddleware, async (req, res) => {
       data: {
         name,
         creator_id: adminId,
-        expires_at: expires_at ? new Date(expires_at) : null,
+        expires_at: null, // default status is DRAFT
+        status: "DRAFT",
         questions: {
           create:
             questions?.map((q) => ({
@@ -166,7 +167,11 @@ activityRouter.put("/delete/:quizId", authMiddleware, async (req, res) => {
     const { quizId } = req.params;
 
     if (req.user.role !== "ADMIN") {
-      return res.status(403).json({ error: "Only admins can delete quizzes" });
+      return res.status(403).json({
+        message: "Only admins can delete quizzes",
+        data: null,
+        status: "failure",
+      });
     }
 
     const quiz = await prisma.quizzes.update({
@@ -177,15 +182,95 @@ activityRouter.put("/delete/:quizId", authMiddleware, async (req, res) => {
       },
     });
 
-    res.json({ message: "Quiz deleted ", data: quiz,status: "success" });
+    res.json({
+      message: "Quiz statue updated ",
+      data: quiz,
+      status: "success",
+    });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Failed to delete quiz",data:null, status: "failure" });
+    res.status(500).json({
+      message: "Failed to update quiz status",
+      data: null,
+      status: "failure",
+    });
   }
 });
+// Make the quiz live (update the status to LIVE)
+activityRouter.put("/live/:quizId", authMiddleware, async (req, res) => {
+  try {
+    const { quizId } = req.params;
+    const { expires_at, status } = req.body; // 2025-08-15T10:00:00.000Z ISO 8601 UTC timestamp.
 
+    if (!expires_at || isNaN(new Date(expires_at).getTime())) {
+      return res.status(400).json({
+        message: "Expiration date is required to make the quiz live",
+        data: null,
+        status: "failure",
+      });
+    }
+    if (!status)
+      return res.status(400).json({
+        message: "Status is required LIVE | DRAFT",
+        data: null,
+        status: "failure",
+      });
+    if (req.user.role !== "ADMIN") {
+      return res.status(403).json({
+        message: "Only admins can make the quiz live",
+        data: null,
+        status: "failure",
+      });
+    }
+
+    const quiz = await prisma.quizzes.update({
+      where: { id: Number(quizId) },
+      data: {
+        status: status,
+        updated_at: new Date(),
+        expires_at: new Date(expires_at),
+      },
+    });
+
+    res.json({ message: "Quiz is now live ", data: quiz, status: "success" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      message: "Failed to update quiz",
+      data: null,
+      status: "failure",
+    });
+  }
+});
 // fetch all users with their user ids so admin can assign quizzes
-activityRouter.get("/", async () => {});
+activityRouter.get("/", async (req, res) => {
+  try {
+    if (req.user?.role !== "ADMIN") {
+      return res.status(403).json({ error: "Only admins can view users" });
+    }
+
+    const users = await prisma.users.findMany({
+      where: { role: "USER" },
+      select: { id: true, email: true },
+      orderBy: { id: "asc" },
+    });
+
+    res.json({
+      data: users,
+      status: "success",
+      message: "Users fetched succcessfully",
+    });
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    res
+      .status(500)
+      .json({
+        message: "Failed to fetch users",
+        data: null,
+        status: "failure",
+      });
+  }
+});
 
 // ------ ADMIN ONLY ENDPOINTS END------
 
