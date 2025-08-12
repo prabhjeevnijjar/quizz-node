@@ -2,21 +2,21 @@ FROM node:20
 
 WORKDIR /app
 
-# Copy package files first
+# Copy package files and prisma schema first
 COPY package*.json ./
-
-# Install dependencies
-RUN npm install
-
-# Copy prisma schema and migrations first (needed for generate)
 COPY prisma ./prisma/
 
-# Generate Prisma client in the container
+# Install dependencies inside the container
+RUN npm install
+
+# Generate Prisma client
 RUN npx prisma generate
 
-# Copy rest of the application
+# Copy the rest of your source code (excluding node_modules via .dockerignore)
 COPY . .
 
+# Expose the app port
 EXPOSE 3000
 
+# Start the app
 CMD ["npm", "start"]
