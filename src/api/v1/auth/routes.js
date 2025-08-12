@@ -227,7 +227,7 @@ authRouter.post("/signup", rateLimiter, async (req, res) => {
  *                   type: string
  *                   example: Something went wrong
  */
-authRouter.post("/verify-otp", async (req, res) => {
+authRouter.post("/verify-otp", rateLimiter, async (req, res) => {
   // Validation:: email and otp are required both in string format
   if (!req.body.email || !req.body.otp) {
     return res
@@ -289,7 +289,7 @@ authRouter.post("/verify-otp", async (req, res) => {
  *   post:
  *     summary: Log in a user
  *     description: >
- *       Authenticates a user with their email and password.  
+ *       Authenticates a user with their email and password.
  *       On success, returns a JWT token in the response body and sets it as an HTTP-only cookie for subsequent requests.
  *     tags: [Auth]
  *     requestBody:
@@ -365,7 +365,7 @@ authRouter.post("/verify-otp", async (req, res) => {
  *                   type: string
  *                   example: Something went wrong
  */
-authRouter.post("/login", async (req, res) => {
+authRouter.post("/login", rateLimiter, async (req, res) => {
   // Validation:: email and password are required both in string format
   if (!req.body.email || !req.body.password) {
     return res
@@ -408,7 +408,7 @@ authRouter.post("/login", async (req, res) => {
  *   get:
  *     summary: Get current authenticated user
  *     description: >
- *       Retrieves information about the currently logged-in user based on the JWT token.  
+ *       Retrieves information about the currently logged-in user based on the JWT token.
  *       The token can be provided either via an HTTP-only cookie named `token` or as a Bearer token in the `Authorization` header.
  *     tags: [Auth]
  *     security:
@@ -552,8 +552,8 @@ authRouter.get("/me", async (req, res) => {
  *   post:
  *     summary: Log out the current user
  *     description: >
- *       Logs out the currently authenticated user by clearing the JWT authentication cookie (`token`).  
- *       This endpoint works even if no token is provided and will silently succeed.  
+ *       Logs out the currently authenticated user by clearing the JWT authentication cookie (`token`).
+ *       This endpoint works even if no token is provided and will silently succeed.
  *       No request body is required.
  *     tags: [Auth]
  *     security:

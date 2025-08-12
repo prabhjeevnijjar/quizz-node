@@ -1,14 +1,15 @@
 const { rateLimit } = require("express-rate-limit");
 
-const otpLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000, // 10 minutes
-  max: 5, // limit each IP to 5 requests
+const authRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // limit each IP to 5 requests per window
   message: {
     status: "failure",
-    message: "Too many OTP verification attempts, please try again in 10 minutes.",
+    message:
+      "Too many requests from this IP, please try again after 15 minutes.",
   },
-  standardHeaders: true,
-  legacyHeaders: false,
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
 
-module.exports = otpLimiter;
+module.exports = authRateLimiter;
