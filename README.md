@@ -19,18 +19,25 @@ This guide explains how to set up and run the Quiz Backend API manually or using
 
 ---
 
-## 🐳 Docker Setup
+## 🐳 Docker Setup [Need to have docker installed on your machine]
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/prabhjeevnijjar/quizz-node.git
+   cd quizz-node
+   ```
+2. **Configure Environment Variables**
+   - Create a `.env` file in the project root and add the required environment variables.
 
-1. **Build and run containers**
+3. **Build and run containers**
    ```bash
    docker-compose up --build
    ```
 
-2. **Access the API**
+4. **Access the API**
    - API: [http://localhost:3000](http://localhost:3000)
    - Swagger Docs: [http://localhost:3000/api-docs](http://localhost:3000/api-docs)
 
-3. **Stop containers**
+5. **Stop containers**
    ```bash
    docker-compose down
    ```
