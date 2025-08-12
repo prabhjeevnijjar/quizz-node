@@ -21,8 +21,8 @@ This guide explains how to set up and run the Quiz Backend API manually or using
 
 1. **Clone the repository**
    ```bash
-   git clone <repo-url>
-   cd quiz-backend
+   git clone https://github.com/prabhjeevnijjar/quizz-node.git
+   cd quizz-node
    ```
 
 2. **Install dependencies**
