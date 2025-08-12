@@ -17,6 +17,26 @@ Includes authentication, admin-only quiz creation, and user quiz attempts.
 
 This guide explains how to set up and run the Quiz Backend API manually or using Docker.
 
+---
+
+## 🐳 Docker Setup
+
+1. **Build and run containers**
+   ```bash
+   docker-compose up --build
+   ```
+
+2. **Access the API**
+   - API: [http://localhost:3000](http://localhost:3000)
+   - Swagger Docs: [http://localhost:3000/api-docs](http://localhost:3000/api-docs)
+
+3. **Stop containers**
+   ```bash
+   docker-compose down
+   ```
+
+---
+
 ## 📦 Manual Setup
 
 1. **Clone the repository**
@@ -51,24 +71,6 @@ This guide explains how to set up and run the Quiz Backend API manually or using
    http://localhost:3000/api-docs
    ```
 
----
 
-## 🐳 Docker Setup
-
-1. **Build and run containers**
-   ```bash
-   docker-compose up --build
-   ```
-
-2. **Access the API**
-   - API: [http://localhost:3000](http://localhost:3000)
-   - Swagger Docs: [http://localhost:3000/api-docs](http://localhost:3000/api-docs)
-
-3. **Stop containers**
-   ```bash
-   docker-compose down
-   ```
-
----
 
 **You can now use Postman or any API client to test the endpoints.**
