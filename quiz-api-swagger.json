@@ -1,0 +1,242 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Quiz API",
+    "version": "1.0.0",
+    "description": "API endpoints for quiz management and participation."
+  },
+  "servers": [
+    { "url": "http://localhost:3000/api/v1/quiz" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "QuizOption": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "value": { "type": "string" }
+        }
+      },
+      "QuizQuestion": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "question_text": { "type": "string" },
+          "options": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/QuizOption" }
+          }
+        }
+      },
+      "CreateQuizRequest": {
+        "type": "object",
+        "required": ["name", "questions", "assigned_user_ids"],
+        "properties": {
+          "name": { "type": "string" },
+          "questions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["question_text", "options"],
+              "properties": {
+                "question_text": { "type": "string" },
+                "options": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": ["value"],
+                    "properties": {
+                      "value": { "type": "string" },
+                      "is_correct": { "type": "boolean" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "assigned_user_ids": {
+            "type": "array",
+            "items": { "type": "integer" }
+          }
+        }
+      },
+      "UpdateQuizRequest": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["DRAFT", "LIVE", "EXPIRED", "DELETED"]
+          },
+          "expires_at": { "type": "string", "format": "date-time" },
+          "questions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "integer" },
+                "question_text": { "type": "string" },
+                "options": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "value": { "type": "string" },
+                      "is_correct": { "type": "boolean" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "assigned_user_ids": {
+            "type": "array",
+            "items": { "type": "integer" }
+          }
+        }
+      },
+      "SubmitQuizRequest": {
+        "type": "object",
+        "required": ["answers"],
+        "properties": {
+          "answers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["question_id", "option_id"],
+              "properties": {
+                "question_id": { "type": "integer" },
+                "option_id": { "type": "integer" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "security": [{ "BearerAuth": [] }],
+  "paths": {
+    "/": {
+      "post": {
+        "summary": "Create a new quiz (Admin only)",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/CreateQuizRequest" } }
+          }
+        },
+        "responses": {
+          "201": { "description": "Quiz created successfully" },
+          "400": { "description": "Invalid request or duplicate quiz name" },
+          "403": { "description": "Only admins can create quizzes" }
+        }
+      },
+      "get": {
+        "summary": "Get all quizzes assigned to the authenticated user",
+        "security": [{ "BearerAuth": [] }],
+        "responses": { "200": { "description": "List of quizzes" } }
+      }
+    },
+    "/update/{quizId}": {
+      "put": {
+        "summary": "Update an existing quiz (Admin only)",
+        "parameters": [
+          { "in": "path", "name": "quizId", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/UpdateQuizRequest" } }
+          }
+        },
+        "responses": {
+          "200": { "description": "Quiz updated successfully" },
+          "403": { "description": "Only admins can update quizzes" }
+        }
+      }
+    },
+    "/delete/{quizId}": {
+      "put": {
+        "summary": "Delete a quiz (mark as DELETED)",
+        "parameters": [
+          { "in": "path", "name": "quizId", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Quiz deleted successfully" },
+          "403": { "description": "Only admins can delete quizzes" }
+        }
+      }
+    },
+    "/live/{quizId}": {
+      "put": {
+        "summary": "Make a quiz LIVE or DRAFT (Admin only)",
+        "parameters": [
+          { "in": "path", "name": "quizId", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": { "type": "string", "enum": ["LIVE", "DRAFT"] },
+                  "expires_at": { "type": "string", "format": "date-time" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Quiz status updated" },
+          "400": { "description": "Missing or invalid expiration date" },
+          "403": { "description": "Only admins can make quizzes live" }
+        }
+      }
+    },
+    "/results": {
+      "get": {
+        "summary": "Get quiz results for authenticated user",
+        "responses": {
+          "200": { "description": "Quiz results fetched successfully" }
+        }
+      }
+    },
+    "/{id}": {
+      "get": {
+        "summary": "Get quiz details for user to attempt",
+        "parameters": [
+          { "in": "path", "name": "id", "schema": { "type": "integer" }, "required": true }
+        ],
+        "responses": {
+          "200": { "description": "Quiz fetched successfully" },
+          "404": { "description": "Quiz not found, expired, or not accessible" }
+        }
+      },
+      "post": {
+        "summary": "Submit quiz answers",
+        "parameters": [
+          { "in": "path", "name": "id", "schema": { "type": "integer" }, "required": true }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/SubmitQuizRequest" } }
+          }
+        },
+        "responses": {
+          "200": { "description": "Quiz submitted successfully" },
+          "400": { "description": "No answers provided" },
+          "403": { "description": "Quiz not assigned or expired" }
+        }
+      }
+    }
+  }
+}

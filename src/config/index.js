@@ -26,11 +26,37 @@ const config = {
     },
     credentials: true,
   },
+  port: process.env.PORT,
+
+  swaggerOptions: {
+    definition: {
+      openapi: "3.0.0",
+      info: {
+        title: "Quiz API",
+        version: "1.0.0",
+        description: "API documentation for Quiz Management System",
+      },
+      servers: [
+        {
+          url: `http://localhost:${process.env.PORT}`,
+        },
+      ],
+      components: {
+        securitySchemes: {
+          bearerAuth: {
+            type: "http",
+            scheme: "bearer",
+            bearerFormat: "JWT",
+          },
+        },
+      },
+    },
+    apis: ["./src/api/v1/**/*.js"], // Path to your API route files
+  },
   env: process.env.NODE_ENV,
   senderMail: process.env.EMAIL_USER,
   senderMailPass: process.env.EMAIL_PASS,
   jwtSecret: process.env.JWT_SECRET,
-  port: process.env.PORT,
   otpExpireMinutes: process.env.OTP_EXPIRY_MINUTES,
   website: process.env.WEBSITE,
 };

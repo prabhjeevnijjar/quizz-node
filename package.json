@@ -32,6 +32,8 @@
     "morgan": "^1.10.0",
     "nodemailer": "^7.0.5",
     "nodemon": "^3.1.4",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
     "urllib": "^4.1.0"
   },
   "devDependencies": {

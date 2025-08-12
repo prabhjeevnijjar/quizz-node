@@ -28,7 +28,42 @@ const setCookie = (res, jwtToken) =>
     sameSite: "Lax",
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
-
+/**
+ * @swagger
+ * /auth/signup:
+ *   post:
+ *     summary: Register a new user
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - fullName
+ *               - email
+ *               - password
+ *               - confirmPassword
+ *               - role
+ *             properties:
+ *               fullName:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               confirmPassword:
+ *                 type: string
+ *               role:
+ *                 type: string
+ *                 enum: [ADMIN, USER]
+ *     responses:
+ *       200:
+ *         description: OTP sent successfully
+ *       400:
+ *         description: Validation error
+ */
 authRouter.post("/signup", rateLimiter, async (req, res) => {
   try {
     const { fullName, email, password, confirmPassword, role } = req.body;
@@ -107,7 +142,91 @@ authRouter.post("/signup", rateLimiter, async (req, res) => {
       .json({ status: "failure", message: "Something went wrong" });
   }
 });
-
+/**
+ * @swagger
+ * /auth/verify-otp:
+ *   post:
+ *     summary: Verify user OTP for signup confirmation
+ *     description: >
+ *       This endpoint verifies a user's email address by matching the provided OTP code against the stored OTP token.
+ *       If successful, the user is marked as verified, a JWT is issued, and it is also set as an HTTP-only cookie.
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - otp
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: user@example.com
+ *               otp:
+ *                 type: string
+ *                 minLength: 6
+ *                 maxLength: 6
+ *                 example: "123456"
+ *     responses:
+ *       200:
+ *         description: OTP verified successfully, user verified, JWT issued.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 message:
+ *                   type: string
+ *                   example: OTP verified
+ *                 token:
+ *                   type: string
+ *                   description: JWT authentication token.
+ *       400:
+ *         description: Invalid request or OTP verification failed.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: failure
+ *                 message:
+ *                   type: string
+ *                   example: Invalid or expired OTP
+ *       401:
+ *         description: Unauthorized request.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: failure
+ *                 message:
+ *                   type: string
+ *                   example: Unauthorized
+ *       500:
+ *         description: Server error while verifying OTP.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: failure
+ *                 message:
+ *                   type: string
+ *                   example: Something went wrong
+ */
 authRouter.post("/verify-otp", async (req, res) => {
   // Validation:: email and otp are required both in string format
   if (!req.body.email || !req.body.otp) {
@@ -164,7 +283,88 @@ authRouter.post("/verify-otp", async (req, res) => {
       .json({ status: "failure", message: "Something went wrong" });
   }
 });
-
+/**
+ * @swagger
+ * /auth/login:
+ *   post:
+ *     summary: Log in a user
+ *     description: >
+ *       Authenticates a user with their email and password.  
+ *       On success, returns a JWT token in the response body and sets it as an HTTP-only cookie for subsequent requests.
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: user@example.com
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 example: MySecurePassword123
+ *     responses:
+ *       200:
+ *         description: Login successful. JWT token returned and cookie set.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 token:
+ *                   type: string
+ *                   description: JWT authentication token.
+ *                   example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+ *       400:
+ *         description: Missing fields or invalid credentials.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: failure
+ *                 message:
+ *                   type: string
+ *                   example: Invalid email or password
+ *       403:
+ *         description: Email exists but is not yet verified.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: failure
+ *                 message:
+ *                   type: string
+ *                   example: Email not verified
+ *       500:
+ *         description: Internal server error during login attempt.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: failure
+ *                 message:
+ *                   type: string
+ *                   example: Something went wrong
+ */
 authRouter.post("/login", async (req, res) => {
   // Validation:: email and password are required both in string format
   if (!req.body.email || !req.body.password) {
@@ -202,7 +402,95 @@ authRouter.post("/login", async (req, res) => {
       .json({ status: "failure", message: "Something went wrong" });
   }
 });
-
+/**
+ * @swagger
+ * /auth/me:
+ *   get:
+ *     summary: Get current authenticated user
+ *     description: >
+ *       Retrieves information about the currently logged-in user based on the JWT token.  
+ *       The token can be provided either via an HTTP-only cookie named `token` or as a Bearer token in the `Authorization` header.
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: cookie
+ *         name: token
+ *         schema:
+ *           type: string
+ *         required: false
+ *         description: JWT authentication token stored in an HTTP-only cookie.
+ *       - in: header
+ *         name: Authorization
+ *         schema:
+ *           type: string
+ *           example: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+ *         required: false
+ *         description: JWT authentication token in Bearer format (used when cookies are not available).
+ *     responses:
+ *       200:
+ *         description: Authenticated user data retrieved successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 message:
+ *                   type: string
+ *                   example: User data found
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                       example: 1
+ *                     email:
+ *                       type: string
+ *                       example: user@example.com
+ *                     role:
+ *                       type: string
+ *                       example: USER
+ *                     is_verified:
+ *                       type: boolean
+ *                       example: true
+ *                     created_at:
+ *                       type: string
+ *                       format: date-time
+ *                       example: 2025-08-11T10:20:30Z
+ *       401:
+ *         description: Unauthorized — missing token, invalid token, or unverified user.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: failure
+ *                 message:
+ *                   type: string
+ *                   example: Unauthorized
+ *                 data:
+ *                   type: string
+ *                   nullable: true
+ *                   example: null
+ *       500:
+ *         description: Internal server error while fetching user data.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: failure
+ *                 message:
+ *                   type: string
+ *                   example: Something went wrong
+ */
 authRouter.get("/me", async (req, res) => {
   try {
     let token;
@@ -258,7 +546,59 @@ authRouter.get("/me", async (req, res) => {
       .json({ status: "failure", message: "Invalid token", data: null });
   }
 });
-
+/**
+ * @swagger
+ * /auth/logout:
+ *   post:
+ *     summary: Log out the current user
+ *     description: >
+ *       Logs out the currently authenticated user by clearing the JWT authentication cookie (`token`).  
+ *       This endpoint works even if no token is provided and will silently succeed.  
+ *       No request body is required.
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Successfully logged out.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 message:
+ *                   type: string
+ *                   example: Logged out
+ *       401:
+ *         description: Unauthorized — no token provided (optional behavior depending on implementation).
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: failure
+ *                 message:
+ *                   type: string
+ *                   example: Unauthorized
+ *       500:
+ *         description: Internal server error while logging out.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: failure
+ *                 message:
+ *                   type: string
+ *                   example: Something went wrong
+ */
 authRouter.post("/logout", async (req, res) => {
   try {
     logoutUser(res);

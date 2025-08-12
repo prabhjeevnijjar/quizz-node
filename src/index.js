@@ -1,13 +1,15 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const dotenv = require("dotenv");
-const { port } = require("./config/index");
+const { port, swaggerOptions } = require("./config/index");
 const cors = require("cors");
 const helmet = require("helmet");
 const ExpressLogs = require("express-server-logs");
 const rateLimit = require("express-rate-limit");
 // const prisma = require('../prisma/prismaClient.js');
 const cookieParser = require("cookie-parser");
+const swaggerUi = require("swagger-ui-express");
+const swaggerJSDoc = require("swagger-jsdoc");
 
 const routes = require("./api/v1/router.js");
 const { corsOptions, rateLimitConfig } = require("./config");
@@ -36,7 +38,8 @@ app.get("/api/health", (req, res) => {
   });
 });
 app.use("/api/v1", routes);
-
+const swaggerDocs = swaggerJSDoc(swaggerOptions);
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
 app.use("*", (req, res) => {
   res.status(404).json({ message: "Route not found" });
@@ -47,5 +50,6 @@ app.use((err, req, res) => {
 });
 
 app.listen(port, () => {
-  console.log("connected to port: ", port);
+  console.log(`Server running at http://localhost:${port}`);
+  console.log(`Swagger docs available at http://localhost:${port}/api-docs`);
 });
