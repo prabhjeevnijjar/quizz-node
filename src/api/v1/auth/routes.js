@@ -30,7 +30,7 @@ const setCookie = (res, jwtToken) =>
   });
 /**
  * @swagger
- * /auth/signup:
+ * /api/v1/auth/signup:
  *   post:
  *     summary: Register a new user
  *     tags: [Auth]
@@ -144,7 +144,7 @@ authRouter.post("/signup", rateLimiter, async (req, res) => {
 });
 /**
  * @swagger
- * /auth/verify-otp:
+ * /api/v1/auth/verify-otp:
  *   post:
  *     summary: Verify user OTP for signup confirmation
  *     description: >
@@ -285,7 +285,7 @@ authRouter.post("/verify-otp", rateLimiter, async (req, res) => {
 });
 /**
  * @swagger
- * /auth/login:
+ * /api/v1/auth/login:
  *   post:
  *     summary: Log in a user
  *     description: >
@@ -404,7 +404,7 @@ authRouter.post("/login", rateLimiter, async (req, res) => {
 });
 /**
  * @swagger
- * /auth/me:
+ * /api/v1/auth/me:
  *   get:
  *     summary: Get current authenticated user
  *     description: >
@@ -548,7 +548,7 @@ authRouter.get("/me", async (req, res) => {
 });
 /**
  * @swagger
- * /auth/logout:
+ * /api/v1/auth/logout:
  *   post:
  *     summary: Log out the current user
  *     description: >

@@ -15,7 +15,7 @@ const {
 // create a quiz
 /**
  * @swagger
- * /quiz:
+ * /api/v1/quiz:
  *   post:
  *     summary: Create a new quiz (Admin only)
  *     description: >
@@ -207,7 +207,7 @@ activityRouter.post("/", authMiddleware, async (req, res) =>
 // update a quiz
 /**
  * @swagger
- * /quiz/update/{quizId}:
+ * /api/v1/quiz/update/{quizId}:
  *   put:
  *     summary: Update an existing quiz (Admin only)
  *     description: >
@@ -358,7 +358,7 @@ activityRouter.put("/update/:quizId", authMiddleware, async (req, res) =>
 // delete a quiz (update the status to DELETED)
 /**
  * @swagger
- * /quiz/delete/{quizId}:
+ * /api/v1/quiz/delete/{quizId}:
  *   put:
  *     summary: Soft delete a quiz (Admin only)
  *     description: >
@@ -466,7 +466,7 @@ activityRouter.put("/delete/:quizId", authMiddleware, async (req, res) =>
 // Make the quiz live (update the status to LIVE)
 /**
  * @swagger
- * /quiz/live/{quizId}:
+ * /api/v1/quiz/live/{quizId}:
  *   put:
  *     summary: Make a quiz LIVE or revert it to DRAFT (Admin only)
  *     description: >
@@ -606,7 +606,7 @@ activityRouter.put("/live/:quizId", authMiddleware, async (req, res) =>
 // get all quizzes assigned to the user
 /**
  * @swagger
- * /quiz:
+ * /api/v1/quiz:
  *   get:
  *     summary: Get all quizzes assigned to the logged-in user
  *     description: >
@@ -711,7 +711,7 @@ activityRouter.get("/", authMiddleware, async (req, res) =>
 // Get quiz results for the user
 /**
  * @swagger
- * /quiz/results:
+ * /api/v1/quiz/results:
  *   get:
  *     summary: Get quiz results for the logged-in user
  *     description: >
@@ -822,7 +822,7 @@ activityRouter.get("/results", authMiddleware, async (req, res) =>
 //GET quiz by its id to be attempted by the user
 /**
  * @swagger
- * /quiz/{id}:
+ * /api/v1/quiz/{id}:
  *   get:
  *     summary: Get quiz details for the logged-in user to attempt
  *     description: >
@@ -940,7 +940,7 @@ activityRouter.get("/:id", authMiddleware, async (req, res) =>
 // POST /api/v1/quiz/:id - Submit quiz answers
 /**
  * @swagger
- * /quiz/{id}:
+ * /api/v1/quiz/{id}:
  *   post:
  *     summary: Submit quiz answers
  *     description: >
