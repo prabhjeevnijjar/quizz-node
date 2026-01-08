@@ -78,6 +78,26 @@ This guide explains how to set up and run the Quiz Backend API manually or using
    http://localhost:3000/api-docs
    ```
 
+---
 
+## Requirements
+- Admin and user roles
+- Admin
+  - Can create, update, delete a new quiz and questions
+  - Name (required)
+  - start date and time
+  - end date and time
+  - Questions with options and one correct or multiple correct options
+  - shareable url for quiz
+  - assign users to a quiz via email the added emails will get a email letting them know they have been invited to this quiz
+ 
+- User
+  - Can view all quizes assigned to their email id
+  - Can start answering questions and submit within the quiz active duration set by the admin
+  - Can not view a quiz outside the duration set by the admin
+  - Can view results for their submitted quizes
+  - Can view all submitted quizes and their result
+  - Store quiz attempts and each score
+  - 
 
 **You can now use Postman or any API client to test the endpoints.**
